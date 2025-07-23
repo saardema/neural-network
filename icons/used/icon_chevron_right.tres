@@ -1,0 +1,6 @@
+[gd_resource type="SVGTexture" format=3 uid="uid://bh7oxyanc4e77"]
+
+[resource]
+_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"16\"><path fill=\"none\" stroke=\"#e0e0e0\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"m2 2 4 6-4 6\"/></svg>
+"
+base_scale = 2.0

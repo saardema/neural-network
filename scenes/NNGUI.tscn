@@ -1,0 +1,397 @@
+[gd_scene load_steps=24 format=3 uid="uid://bpypdlpe7tydd"]
+
+[ext_resource type="Script" uid="uid://cgllhjc3q35a3" path="res://scripts/NeuralNetwork/nn_gui.gd" id="1_2egc2"]
+[ext_resource type="PackedScene" uid="uid://mg1muypmihai" path="res://addons/utils/plotter/plotter.tscn" id="3_2ltmf"]
+[ext_resource type="Script" uid="uid://bm4muvgmbdcrk" path="res://addons/utils/plotter/connection/connections_state.gd" id="5_11bf3"]
+[ext_resource type="Script" uid="uid://s2ly4dbj8ng2" path="res://addons/utils/plotter/connection/connection.gd" id="5_aak16"]
+[ext_resource type="Theme" uid="uid://c412doxf410yo" path="res://NNGUI_theme.tres" id="5_hqujm"]
+[ext_resource type="Texture2D" uid="uid://dw7y24ub34lwb" path="res://icons/godot/GuiDropdown.svg" id="5_n0p7k"]
+[ext_resource type="Script" uid="uid://q3ov1pgc20gp" path="res://scripts/NeuralNetwork/nn_gui_network.gd" id="7_k2m4n"]
+[ext_resource type="Texture2D" uid="uid://dr5ixdiq7dnr3" path="res://icons/used/icon_chevron_left.tres" id="8_aak16"]
+[ext_resource type="Texture2D" uid="uid://bh7oxyanc4e77" path="res://icons/used/icon_chevron_right.tres" id="9_u8gyf"]
+[ext_resource type="Texture2D" uid="uid://p48tsntca8hv" path="res://icons/used/icon_dice.tres" id="10_n60vm"]
+[ext_resource type="Texture2D" uid="uid://dsqwddmq3auj7" path="res://icons/used/icon_reload.tres" id="11_s3iod"]
+[ext_resource type="Texture2D" uid="uid://dgif0c7rxuei1" path="res://icons/used/icon_step.tres" id="12_sqcth"]
+[ext_resource type="Texture2D" uid="uid://ceth023eeel2v" path="res://icons/used/icon_play.tres" id="13_sdwbg"]
+
+[sub_resource type="Resource" id="Resource_u8gyf"]
+script = ExtResource("5_aak16")
+channel_name = &"Loss"
+
+[sub_resource type="Resource" id="Resource_n60vm"]
+script = ExtResource("5_aak16")
+feature = 1
+channel_name = &"Input"
+
+[sub_resource type="Resource" id="Resource_s3iod"]
+script = ExtResource("5_aak16")
+feature = 3
+channel_name = &"Loss"
+
+[sub_resource type="Resource" id="Resource_aak16"]
+script = ExtResource("5_11bf3")
+connections = Dictionary[int, ExtResource("5_aak16")]({
+0: SubResource("Resource_u8gyf"),
+1: SubResource("Resource_n60vm"),
+3: SubResource("Resource_s3iod")
+})
+data = {
+0: {
+"channel_name": &"Loss",
+"sub_channel": 0
+},
+1: {
+"channel_name": &"Input",
+"sub_channel": 0
+},
+3: {
+"channel_name": &"Loss",
+"sub_channel": 0
+}
+}
+metadata/_custom_type_script = "uid://bm4muvgmbdcrk"
+
+[sub_resource type="Resource" id="Resource_sqcth"]
+script = ExtResource("5_aak16")
+channel_name = &"Loss"
+
+[sub_resource type="Resource" id="Resource_sdwbg"]
+script = ExtResource("5_aak16")
+feature = 1
+channel_name = &"Input"
+
+[sub_resource type="Resource" id="Resource_0ymoe"]
+script = ExtResource("5_aak16")
+feature = 3
+channel_name = &"Loss"
+
+[sub_resource type="Resource" id="Resource_bko0m"]
+script = ExtResource("5_11bf3")
+connections = Dictionary[int, ExtResource("5_aak16")]({
+0: SubResource("Resource_sqcth"),
+1: SubResource("Resource_sdwbg"),
+3: SubResource("Resource_0ymoe")
+})
+data = {
+0: {
+"channel_name": &"Loss",
+"sub_channel": 0
+},
+1: {
+"channel_name": &"Input",
+"sub_channel": 0
+},
+3: {
+"channel_name": &"Loss",
+"sub_channel": 0
+}
+}
+
+[sub_resource type="Theme" id="Theme_vefmb"]
+
+[sub_resource type="SystemFont" id="SystemFont_d4bjk"]
+font_names = PackedStringArray("Courier New")
+font_weight = 450
+subpixel_positioning = 0
+keep_rounding_remainders = false
+
+[node name="NNGUI" type="ColorRect"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("5_hqujm")
+color = Color(0, 0, 0, 0)
+script = ExtResource("1_2egc2")
+
+[node name="VSplitContainer" type="VSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 3
+
+[node name="NetworkContainer" type="MarginContainer" parent="VSplitContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.3
+theme_override_constants/margin_left = 58
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 150
+
+[node name="NetworkDisplay" type="Control" parent="VSplitContainer/NetworkContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 1
+script = ExtResource("7_k2m4n")
+min_alpha = 0.0
+max_alpha = 1.0
+line_width = 0.318
+max_neuron_size = 18.589999999996508
+weight_spacing_y = 0.08780039
+color_neg = Color(0.9730076, 0.5790525, 0.36817372, 1)
+color_pos = Color(0, 0.53333336, 0.8627451, 1)
+layer_proportion = 73.80999999999767
+font_size = 16
+
+[node name="HSplitContainer" type="HSplitContainer" parent="VSplitContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="IOPlotter" parent="VSplitContainer/HSplitContainer" instance=ExtResource("3_2ltmf")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+colors = Array[Color]([Color(0.1692038, 0.7, 0, 1), Color(0, 0.68207866, 0.7, 1), Color(0.47366136, 0, 0.7, 1), Color(0.7, 0, 0.0521337, 1), Color(0.35415572, 0.7, 0, 1), Color(0, 0.63565725, 0.7, 1), Color(0.33591822, 0, 0.7, 1), Color(0.7, 0.117417574, 0, 1), Color(0.34925583, 0.7, 0, 1), Color(0, 0.7, 0.58500004, 1)])
+grid_alpha = 0.266
+grid_resolution = 0.10153202
+grid_contrast = 1.0
+background_color = Color(0.069999985, 0.069999985, 0.069999985, 1)
+state = SubResource("Resource_aak16")
+
+[node name="LossPlotter" parent="VSplitContainer/HSplitContainer" instance=ExtResource("3_2ltmf")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(1.81, 9.19)
+layout_mode = 2
+size_flags_horizontal = 3
+colors = Array[Color]([Color(0.49463773, 0.7, 0, 1), Color(0, 0.7, 0.4043844, 1), Color(0.10496802, 0, 0.7, 1), Color(0.7, 0, 0.37686875, 1), Color(0.68211234, 0.7, 0, 1), Color(0, 0.7, 0.55653006, 1), Color(0.2864211, 0, 0.7, 1), Color(0.7, 0, 0.020412015, 1), Color(0.26266956, 0.7, 0, 1), Color(0, 0.69983244, 0.7, 1)])
+grid_alpha = 0.266
+grid_resolution = 0.10153202
+grid_contrast = 1.0
+background_color = Color(0.069999985, 0.069999985, 0.069999985, 1)
+state = SubResource("Resource_bko0m")
+
+[node name="ButtonContainer" type="MarginContainer" parent="."]
+z_index = 2
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -310.0
+offset_top = -153.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 15
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ButtonContainer"]
+layout_mode = 2
+size_flags_vertical = 8
+
+[node name="FoldableContainer" type="FoldableContainer" parent="ButtonContainer/VBoxContainer"]
+layout_mode = 2
+mouse_filter = 1
+mouse_default_cursor_shape = 2
+folded = true
+title_position = 1
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ButtonContainer/VBoxContainer/FoldableContainer"]
+visible = false
+layout_mode = 2
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="MenuProblems" type="MenuButton" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/VBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_default_cursor_shape = 2
+text = "Problems"
+icon = ExtResource("5_n0p7k")
+alignment = 0
+icon_alignment = 2
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/HBoxContainer2"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 1
+mouse_default_cursor_shape = 5
+text = "Weight init"
+
+[node name="InputWeightsInit" type="SpinBox" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/HBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0010000000038417
+step = 0.0010000000038417
+value = 0.10000000038417
+alignment = 2
+select_all_on_focus = true
+
+[node name="HBoxContainer5" type="HBoxContainer" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/HBoxContainer5"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Batch size"
+
+[node name="InputBatchSize" type="SpinBox" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/HBoxContainer5"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+value = 1.0
+rounded = true
+allow_greater = true
+alignment = 2
+select_all_on_focus = true
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/HBoxContainer3"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Iterations"
+
+[node name="InputIterations" type="SpinBox" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/HBoxContainer3"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 1000.0
+value = 1.0
+rounded = true
+allow_greater = true
+alignment = 2
+select_all_on_focus = true
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="HBoxContainer4" type="HBoxContainer" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/VBoxContainer/HBoxContainer4"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Learn rate"
+
+[node name="ValueLearnRate" type="Label" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/VBoxContainer/HBoxContainer4"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "0.001"
+horizontal_alignment = 2
+
+[node name="InputLearnRate" type="HSlider" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0.0010000000038417
+max_value = 1.0
+step = 0.0
+value = 0.0010000000038417
+exp_edit = true
+
+[node name="ButtonReload" type="Button" parent="ButtonContainer/VBoxContainer/FoldableContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Reload network"
+alignment = 0
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="ButtonContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 53)
+layout_mode = 2
+
+[node name="ButtonBWD" type="Button" parent="ButtonContainer/VBoxContainer/HBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+mouse_default_cursor_shape = 2
+icon = ExtResource("8_aak16")
+icon_alignment = 1
+expand_icon = true
+
+[node name="ButtonFWD" type="Button" parent="ButtonContainer/VBoxContainer/HBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+mouse_default_cursor_shape = 2
+icon = ExtResource("9_u8gyf")
+icon_alignment = 1
+expand_icon = true
+
+[node name="ButtonNextSample" type="Button" parent="ButtonContainer/VBoxContainer/HBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 32
+icon = ExtResource("10_n60vm")
+icon_alignment = 1
+expand_icon = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="ButtonContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 53)
+layout_mode = 2
+
+[node name="ButtonReset" type="Button" parent="ButtonContainer/VBoxContainer/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+mouse_default_cursor_shape = 2
+icon = ExtResource("11_s3iod")
+icon_alignment = 1
+expand_icon = true
+
+[node name="ButtonStep" type="Button" parent="ButtonContainer/VBoxContainer/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+mouse_default_cursor_shape = 2
+icon = ExtResource("12_sqcth")
+icon_alignment = 1
+expand_icon = true
+
+[node name="ButtonRun" type="Button" parent="ButtonContainer/VBoxContainer/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+mouse_default_cursor_shape = 2
+toggle_mode = true
+icon = ExtResource("13_sdwbg")
+icon_alignment = 1
+expand_icon = true
+
+[node name="TextContainer" type="MarginContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -495.0
+offset_right = 1485.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="LeftTextLabel" type="Label" parent="TextContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 8
+theme = SubResource("Theme_vefmb")
+theme_override_fonts/font = SubResource("SystemFont_d4bjk")
+theme_override_font_sizes/font_size = 26
+text = "Output"
+vertical_alignment = 2

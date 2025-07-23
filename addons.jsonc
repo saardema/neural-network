@@ -1,0 +1,18 @@
+// Godot addons configuration file for use with the GodotEnv tool.
+// See https://github.com/chickensoft-games/GodotEnv for more info.
+// -------------------------------------------------------------------- //
+// Run godotenv addons install to apply this configuration.
+// -------------------------------------------------------------------- //
+{
+  "$schema": "https://chickensoft.games/schemas/addons.schema.json",
+  "addons": {
+    "debug-tools": {
+      "source": "symlink",
+      "url": "~/godot/addons/debug-tools"
+    },
+    "utils": {
+      "source": "symlink",
+      "url": "~/godot/addons/utils"
+    }
+  }
+}

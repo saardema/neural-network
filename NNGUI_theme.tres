@@ -1,0 +1,5 @@
+[gd_resource type="Theme" format=3 uid="uid://c412doxf410yo"]
+
+[resource]
+default_font_size = 26
+SplitContainer/constants/minimum_grab_thickness = 15

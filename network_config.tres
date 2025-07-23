@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="NeuralNetworkConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/NeuralNetwork/NeuralNetworkConfig.gd" id="1_175ry"]
+
+[resource]
+script = ExtResource("1_175ry")
+learn_rate = 0.00810828050355931
+iterations = 100
+wt_std_dev = 0.3490000013407533
+problem = "Sin"
+metadata/_custom_type_script = "uid://vhra1wk076bj"

@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bbs5vumg4mckj"
+path="res://.godot/imported/backward.glsl-0284bd69f08db7fb574d37f24aa5b5df.res"
+
+[deps]
+
+source_file="res://shaders/backward.glsl"
+dest_files=["res://.godot/imported/backward.glsl-0284bd69f08db7fb574d37f24aa5b5df.res"]
+
+[params]
+

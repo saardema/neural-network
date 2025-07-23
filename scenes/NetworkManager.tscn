@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3 uid="uid://cs3vbpi3km5qa"]
+
+[ext_resource type="Script" uid="uid://b85gq2coeewlj" path="res://scripts/NeuralNetwork/NetworkManager.gd" id="1_oqml2"]
+[ext_resource type="PackedScene" uid="uid://bpypdlpe7tydd" path="res://scenes/NNGUI.tscn" id="2_6aumj"]
+[ext_resource type="Resource" path="res://network_config.tres" id="2_dkntm"]
+
+[node name="NeuralNetwork" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+focus_mode = 2
+script = ExtResource("1_oqml2")
+config = ExtResource("2_dkntm")
+
+[node name="NNGUI" parent="." instance=ExtResource("2_6aumj")]
+layout_mode = 1
