@@ -23,17 +23,22 @@ const NetworkManager = preload("uid://b85gq2coeewlj")
 @onready var input_learn_rate: HSlider = %InputLearnRate
 @onready var input_wt_std_dev: SpinBox = %InputWeightsInit
 @onready var value_learn_rate: Label = %ValueLearnRate
+@onready var input_random_sampling: CheckButton = %InputRandomSampling
+@onready var input_sampling_resolution: HSlider = %InputSamplingResolution
+@onready var value_sampling_resolution: Label = %ValueSamplingResolution
+@onready var input_shuffle_training: CheckButton = %InputShuffleTraining
 
 signal problem_changed()
 
-var next_sample_is_random: bool
 var save_rate_limiter: RateLimiter
 var channels: Dictionary[StringName, Plotter.Channel]
 
-const LOSS = "Loss"
-const IO_INPUT = "Input"
-const IO_OUTPUT = "Output"
-const IO_EXPECTED = "Expected"
+const CH_LOSS = "Loss"
+const CH_INPUT = "Input"
+const CH_ERROR = "Error"
+const CH_OUTPUT = "Output"
+const CH_EXPECTED = "Expected"
+
 
 func _ready():
 	input_batch_size.value_changed.connect(update_config)
@@ -41,6 +46,11 @@ func _ready():
 	input_learn_rate.value_changed.connect(update_config)
 	input_wt_std_dev.value_changed.connect(update_config)
 
+	input_sampling_resolution.value_changed.connect(
+		func(v): value_sampling_resolution.text = str(int(v)))
+	value_sampling_resolution.text = str(int(input_sampling_resolution.value))
+
+	button_bwd.pressed.connect(_on_bwd_pressed)
 	button_fwd.pressed.connect(_on_fwd_pressed)
 	button_next_sample.pressed.connect(_on_next_sample_pressed)
 	button_reset.pressed.connect(_on_reset_pressed)
@@ -51,15 +61,16 @@ func _ready():
 	popup_problems.connect("id_pressed", _on_problem_selected)
 
 	# Plotters
-	channels[LOSS] = loss_plotter.create_channel(LOSS)
-	channels[IO_INPUT] = io_plotter.create_channel(IO_INPUT)
-	channels[IO_OUTPUT] = io_plotter.create_channel(IO_OUTPUT)
-	channels[IO_EXPECTED] = io_plotter.create_channel(IO_EXPECTED)
-
-	loss_plotter.add_channel(channels[IO_INPUT])
-	loss_plotter.add_channel(channels[IO_OUTPUT])
-	loss_plotter.add_channel(channels[IO_EXPECTED])
-
+	channels[CH_LOSS] = io_plotter.create_channel(CH_LOSS)
+	channels[CH_INPUT] = io_plotter.create_channel(CH_INPUT)
+	channels[CH_ERROR] = io_plotter.create_channel(CH_ERROR)
+	channels[CH_OUTPUT] = io_plotter.create_channel(CH_OUTPUT)
+	channels[CH_EXPECTED] = io_plotter.create_channel(CH_EXPECTED)
+	loss_plotter.add_channel(channels[CH_LOSS])
+	loss_plotter.add_channel(channels[CH_INPUT])
+	loss_plotter.add_channel(channels[CH_ERROR])
+	loss_plotter.add_channel(channels[CH_OUTPUT])
+	loss_plotter.add_channel(channels[CH_EXPECTED])
 
 func _on_reset_pressed():
 	io_plotter.clear()
@@ -75,21 +86,26 @@ func _on_problem_selected(problem_id: int) -> void:
 
 func set_network(network: NeuralNetwork):
 	nn = network
-	nn.network_updated.connect(render)
-	nn.propagated_forwards.connect(_on_forward_propagation)
 	network_display.set_network(nn)
 
-	button_bwd.pressed.connect(nn.step_bwd)
-	button_step.pressed.connect(nn.train)
+	nn.updated.connect(render)
+	nn.trained_frame.connect(sample_output)
+	button_step.pressed.connect(nn.train.bind(1))
 
 	input_batch_size.set_value_no_signal(nn.config.batch_size)
 	input_iterations.set_value_no_signal(nn.config.iterations)
 	input_learn_rate.set_value_no_signal(nn.config.learn_rate)
 	input_wt_std_dev.set_value_no_signal(nn.config.wt_std_dev)
 
-	channels[IO_INPUT].set_channel_count(nn.input_layer.size)
-	channels[IO_OUTPUT].set_channel_count(nn.output_layer.size)
-	channels[IO_EXPECTED].set_channel_count(nn.output_layer.size)
+	channels[CH_INPUT].set_channel_count(nn.input_layer.size)
+	channels[CH_OUTPUT].set_channel_count(nn.output_layer.size)
+	channels[CH_ERROR].set_channel_count(nn.output_layer.size)
+	channels[CH_EXPECTED].set_channel_count(nn.output_layer.size)
+
+	nn.shuffle_training = input_shuffle_training.button_pressed
+	input_shuffle_training.toggled.connect(
+		func(is_toggled: bool): nn.shuffle_training = is_toggled
+	)
 
 	input_learn_rate.value = nn.config.learn_rate
 	value_learn_rate.text = &"%.3f" % input_learn_rate.value
@@ -99,31 +115,59 @@ func set_network(network: NeuralNetwork):
 	render()
 
 
-func _on_forward_propagation():
+func record_snapshot():
 	if nn.input_layer.size == 1:
-		io_plotter.write_channel(channels[IO_INPUT], nn.input_layer.neurons[0].activation)
+		channels[CH_INPUT].write_single(nn.input_layer.neurons[0].activation)
 	else:
-		io_plotter.write_multi_channel(channels[IO_INPUT], nn.input_layer.as_array())
+		channels[CH_INPUT].write_singles(nn.input_layer.as_array())
 
 	if nn.output_layer.size == 1:
-		io_plotter.write_channel(channels[IO_OUTPUT], nn.output_layer.neurons[0].activation)
-		io_plotter.write_channel(channels[IO_EXPECTED], nn.data.target_data[nn.data.current_sample])
+		channels[CH_OUTPUT].write_single(nn.output_layer.neurons[0].activation)
+		channels[CH_EXPECTED].write_single(nn.data.target_data[nn.data.current_sample])
 	else:
-		io_plotter.write_multi_channel(channels[IO_OUTPUT], nn.output_layer.as_array())
+		channels[CH_OUTPUT].write_singles(nn.output_layer.as_array())
+		channels[CH_EXPECTED].write_singles(nn.data.get_targets())
 
+
+func sample_output():
+	var resolution := int(input_sampling_resolution.value)
+	var original_index := nn.data.current_index
+	var random_sampling := input_random_sampling.button_pressed
+	nn.data.current_index = 0
+	var sampling_range := nn.data.get_sampling_range(resolution)
+
+	for i in sampling_range:
+		nn.data.current_sample = nn.data.indices[i] if random_sampling else i
+		nn.propagate_forwards()
+		record_snapshot()
+
+	nn.data.current_index = original_index
+	nn.data.current_sample = nn.data.indices[original_index]
+
+	channels[CH_LOSS].write_single(nn.loss)
+	channels[CH_ERROR].write_singles(nn.output_layer.as_delta_array())
 
 func render():
-	loss_plotter.write_channel(channels[LOSS], nn.loss)
 	network_display.queue_redraw()
 	queue_redraw()
 
+
+func _on_bwd_pressed():
+	nn.propagate_backwards()
+	nn.updated.emit()
+
+
 func _on_fwd_pressed():
-	nn.next_sample()
-	nn.step_fwd()
+	nn.data.next_sample(false)
+	nn.propagate_forwards()
+	nn.updated.emit()
+
 
 func _on_next_sample_pressed():
-	nn.next_sample(true)
-	nn.step_fwd()
+	nn.data.next_sample(true)
+	nn.propagate_forwards()
+	nn.updated.emit()
+
 
 func update_config(_v):
 	nn.config.batch_size = int(input_batch_size.value)
@@ -134,6 +178,7 @@ func update_config(_v):
 	value_learn_rate.text = &"%.3f" % input_learn_rate.value
 	save_rate_limiter.exec()
 
+
 static func array_to_str(arr: PackedFloat32Array) -> String:
 	if arr.size() == 0: return ""
 
@@ -143,15 +188,24 @@ static func array_to_str(arr: PackedFloat32Array) -> String:
 
 	return s
 
+
 func _draw():
+	if not left_text_label.get_parent().visible: return
+
+	var input: Array[String]
 	var expected: Array[String]
 	var output: Array[String]
+	for i in nn.input_layer.size:
+		input.append("%5.2f" % nn.input_layer.neurons[i].activation)
+
 	for o in nn.output_layer.size:
 		expected.append("%5.2f" % nn.data.get_target(o))
 		output.append("%5.2f" % nn.output_layer.neurons[o].activation)
 
 	left_text_label.text = nn.config.problem
-	left_text_label.text += "\nSample: %d" % nn.data.current_sample
+	left_text_label.text += "\nSample: %d" % nn.data.current_index
+	left_text_label.text += "\nInput:    [%s]" % ', '.join(input)
 	left_text_label.text += "\nExpected: [%s]" % ', '.join(expected)
 	left_text_label.text += "\nOutput:   [%s]" % ', '.join(output)
+	left_text_label.text += "\nError:    [%5.2f]" % nn.output_layer.neurons[0].delta
 	left_text_label.text += "\nLoss: %.6f" % nn.loss

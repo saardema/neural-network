@@ -1,14 +1,7 @@
 class_name Activations
 extends RefCounted
 
-# const TanH = Type.TanH
-# const Sigmoid = Type.Sigmoid
-# const ReLu = Type.ReLu
-# const SoftMax = Type.SoftMax
-# const LeakyReLu = Type.LeakyReLu
-# const PreLu = Type.PreLu
-
-enum Type {TanH, Sigmoid, ReLu, SoftMax, LeakyReLu, PreLu}
+enum Type {Pass, TanH, Sigmoid, ReLu, SoftMax, LeakyReLu, PreLu}
 
 func get_function(type: Type) -> ActivationFunction:
 	return function_map.get(type, function_map.get(Type.Sigmoid))
@@ -18,31 +11,29 @@ var function_map: Dictionary = {
 	Type.Sigmoid: Sigmoid.new(),
 	Type.ReLu: ReLu.new(),
 	Type.SoftMax: SoftMax.new(),
-	Type.LeakyReLu: LeakyReLu.new(),
-	Type.PreLu: PreLu.new()
+	Type.PreLu: PreLu.new(),
+	Type.Pass: Pass.new()
 }
 
 @abstract class ActivationFunction:
 	@abstract func activate(x: float) -> float
 	@abstract func differentiate(a: float) -> float
 
+class Pass extends ActivationFunction:
+	func activate(x: float) -> float:
+		return x
+
+	func differentiate(_a: float) -> float:
+		return 1.0
+
 class PreLu extends ActivationFunction:
-	var prelu_alpha: float = 0.01
+	var prelu_alpha: float = 0.25
 
 	func activate(x: float) -> float:
 		return max(prelu_alpha * x, x)
 
 	func differentiate(a: float) -> float:
 		return 1.0 if a > 0 else prelu_alpha
-
-class LeakyReLu extends ActivationFunction:
-	var leaky_alpha: float = 0.001
-
-	func activate(x: float) -> float:
-		return max(leaky_alpha * x, x)
-
-	func differentiate(a: float) -> float:
-		return 1.0 if a > 0 else leaky_alpha
 
 class SoftMax extends ActivationFunction:
 	func activate(x: float) -> float:
@@ -56,7 +47,7 @@ class ReLu extends ActivationFunction:
 		return max(0, x)
 
 	func differentiate(_a: float) -> float:
-		return 1
+		return 1 if _a > 0 else 0
 
 class Sigmoid extends ActivationFunction:
 	func activate(x: float) -> float:

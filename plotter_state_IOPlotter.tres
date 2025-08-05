@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StateInstance" load_steps=2 format=3 uid="uid://bafl6jqqlht1s"]
+
+[ext_resource type="Script" uid="uid://cqkmmppedpejf" path="res://addons/utils/plotter/state/state_instance.gd" id="1_engx6"]
+
+[resource]
+script = ExtResource("1_engx6")
+state = {
+"connections": {
+0: {
+"channel_name": &"Output",
+"feature": 0,
+"sub_channel": 0
+}
+}
+}

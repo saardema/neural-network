@@ -3,6 +3,7 @@ root = true
 [*]
 charset = utf-8
 indent_style = tabs
+insert_final_newline = true
 
 [*.gd]
 indent_style = tabs

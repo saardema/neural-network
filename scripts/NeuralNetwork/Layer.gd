@@ -24,3 +24,12 @@ func as_array(scale := 1.0) -> PackedFloat32Array:
 		result.append(value)
 
 	return result
+
+
+func as_delta_array() -> PackedFloat32Array:
+	var result := PackedFloat32Array()
+
+	for neuron in neurons:
+		result.append(neuron.delta)
+
+	return result

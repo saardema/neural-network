@@ -4,8 +4,9 @@
 
 [resource]
 script = ExtResource("1_175ry")
-learn_rate = 0.00810828050355931
-iterations = 100
-wt_std_dev = 0.3490000013407533
-problem = "Sin"
+learn_rate = 0.05999599737492616
+batch_size = 20
+iterations = 400
+wt_std_dev = 1.0000000038416998
+problem = "Basic"
 metadata/_custom_type_script = "uid://vhra1wk076bj"
