@@ -17,8 +17,8 @@ config/icon="res://icon.svg"
 
 [autoload]
 
-DebugTools="*res://addons/debug-tools/debug-tools.tscn"
 Utils="*res://addons/utils/utils.tscn"
+DebugTools="*res://addons/debug-tools/debug-tools.tscn"
 
 [debug]
 
@@ -30,6 +30,7 @@ window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/stretch/aspect="expand"
 window/stretch/scale=1.2000000000000002
+window/vsync/vsync_mode=0
 
 [dotnet]
 
@@ -42,7 +43,9 @@ enabled=PackedStringArray("res://addons/debug-tools/plugin.cfg", "res://addons/u
 [gui]
 
 theme/default_font_multichannel_signed_distance_field=true
+theme/custom="uid://c412doxf410yo"
 
 [rendering]
 
+textures/vram_compression/import_etc2_astc=true
 environment/defaults/default_clear_color=Color(0.045312405, 0.045312423, 0.045312423, 1)

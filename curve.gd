@@ -36,8 +36,13 @@ func smootherstep(t):
 	return t * t * t * (t * (t * terms[1].x - terms[1].y) + terms[1].z);
 
 func f(x: float):
+	var y := x
+	# return 0.35 * pow(x - 0.6, 5) - 1.5 * pow(x - 0.35, 3)
+	for term in terms:
+		y += pow(x - term.x, floor(term.y)) * term.z
+	return y + y_offset
 	# return smoothstep(0, 1, x)
-	return smoothstep2(x)
+	# return smoothstep2(x)
 	# return smootherstep(x)
 
 func plot():
@@ -47,7 +52,8 @@ func _process(_dt):
 	# if not plot_scheduled: return
 	# DebugTools.print('plot curve')
 	plot_scheduled = false
+	channel.flush()
 	for i in samples:
-		var x: float = i / (samples - 1) * x_range
+		var x: float = i / (samples - 1) * x_range - x_range / 2
 		channel.write_singles([x, f(x)])
 		# channel.write_single(x)

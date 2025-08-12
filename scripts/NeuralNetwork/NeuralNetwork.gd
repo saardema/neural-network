@@ -1,60 +1,78 @@
 class_name NeuralNetwork
 
+const Neuron = preload("uid://bsmeer8twyv7v")
+const Layer = preload("uid://og5tgmr4jdw3")
+
 signal updated
 signal propagated_forwards
 signal trained_frame
 
 const Math = preload('Math.gd')
+static var max_threads: int = 8
 
+var data: TrainingData
 var layers: Array[Layer]
 var input_layer: Layer
 var output_layer: Layer
 var layer_count: int
 var loss: float = 0
-var train_async: bool = true
-var data: TrainingData
 var config: NeuralNetworkConfig
-var total_iterations: int
 var layout: Layout
 var activation_functions: Activations
-var loss_function: Math.Mean
-var mean_gradient: Array[float]
-var shuffle_training: bool = true
-
+var loss_function: Utils.Math.Mean
+var trainers: Array[Trainer]
+var thread_count: int = 1
+var scaling: int = 1
+var stopwatch := Utils.Stopwatch.new()
 #region Initialization
 
 func _init(network_layout: Layout, network_config: NeuralNetworkConfig):
 	activation_functions = Activations.new()
 	layout = network_layout
 	config = network_config
-	layer_count = layout.hidden.size() + 1
-	input_layer = Layer.new()
-	input_layer.size = layout.inputs
-	mean_gradient.resize(layout.outputs)
-	loss_function = Math.Mean.new(Math.Mean.Type.RootMeanSquare)
+	loss_function = Utils.Math.Mean.new(Utils.Math.Mean.Type.MeanSquare)
 
-	for i in input_layer.size:
-		input_layer.neurons.append(Neuron.new())
+	_build_network()
+
+	for i in max_threads:
+		trainers.append(Trainer.new(self , layout))
+
+
+func destroy():
+	data = null
+	layers.clear()
+	input_layer = null
+	output_layer = null
+	config = null
+	layout = null
+	activation_functions = null
+	loss_function = null
+	trainers.clear()
+
+
+func _build_network():
+	layer_count = layout.hidden.size() + 1
 
 	# Setup layers and populate neurons
-	for l in layer_count:
+	for l in range(-1, layer_count):
 		var layer := Layer.new()
-		layer.is_output = l == layer_count - 1
-		layer.size = layout.outputs if layer.is_output else layout.hidden[l]
-		layers.append(layer)
+		if l == -1:
+			layer.size = layout.inputs
+			input_layer = layer
+		else:
+			if l == layer_count - 1:
+				layer.size = layout.outputs
+				output_layer = layer
+				layer.is_output = true
+			else:
+				layer.size = layout.hidden[l]
+			layers.append(layer)
 
 		for n in layer.size:
 			layer.neurons.append(Neuron.new())
 
-	output_layer = layers[-1]
-
-	# Initialize neurons and setup linked list relationships
-	input_layer.next = layers[0]
-	for i in input_layer.size:
-		input_layer.neurons[i].outgoing = layers[0].neurons
-
-	for l in layer_count:
-		var layer := layers[l]
+	for l in range(-1, layer_count):
+		var layer := input_layer if l == -1 else layers[l]
 		if l > 0: layer.previous = layers[l - 1]
 		if l < layer_count - 1: layer.next = layers[l + 1]
 
@@ -62,20 +80,18 @@ func _init(network_layout: Layout, network_config: NeuralNetworkConfig):
 			var neuron := layer.neurons[n]
 			neuron.neuron_idx = n
 			neuron.incoming = layer.previous.neurons if layer.previous else input_layer.neurons
-			neuron.incoming_size = neuron.incoming.size()
-			neuron.layer = layer
-
-			if layer.is_output:
-				neuron.activation_type = layout.output_activation
-			else:
-				neuron.activation_type = layout.hidden_activation
-			neuron.activation_function = activation_functions.get_function(neuron.activation_type)
-
 			if layer.next: neuron.outgoing = layer.next.neurons
+			neuron.incoming_size = neuron.incoming.size()
+			neuron.outgoing_size = neuron.outgoing.size()
+			neuron.layer = layer
+			if layer.is_output: neuron.activation_type = layout.output_activation
+			else: neuron.activation_type = layout.hidden_activation
+			neuron.activation_function = activation_functions.get_function(neuron.activation_type)
 			neuron.initialize(config.wt_std_dev)
 
+
 func reset():
-	data.current_sample = 0
+	data.rewind()
 	loss = 1
 	initialize_weights()
 
@@ -91,80 +107,74 @@ func initialize_weights():
 
 #region Training
 
-func train(iterations := config.iterations):
-	loss = 0
-
-	if layers[0].neurons[0].learning_rate != config.learn_rate:
-		set_learning_rate(config.learn_rate)
-
-	if config.batch_size > 1: train_mini_batch(iterations)
-	else: train_stochastic(iterations)
-
-	loss = loss_function.calculate()
-	updated.emit()
-	trained_frame.emit()
-
-
-func set_learning_rate(rate: float):
+func _apply_learning_rate(rate: float):
 	for layer in layers:
 		for neuron in layer.neurons:
 			neuron.learning_rate = rate
 
 
-func train_mini_batch(iterations: int):
-	for i in max(1, iterations / config.batch_size):
-		for b in config.batch_size:
-			mini_batch_pass()
-			update_loss()
-		apply_parameters_from_gradients()
+func train(iterations := config.iterations):
+	loss = 0
+	data.batch_size = config.batch_size
+
+	if layers[0].neurons[0].learning_rate != config.learn_rate:
+		_apply_learning_rate(config.learn_rate)
+
+	var samples_per_frame: int = config.iterations
+	var samples_per_batch: int = min(samples_per_frame, data.batch_size, data.samples)
+	var batches_per_frame: int = max(1, samples_per_frame / samples_per_batch)
+	var tasks_per_batch: int = min(trainers.size(), samples_per_batch, scaling)
+	var samples_per_task: int = max(1, samples_per_batch / tasks_per_batch)
+
+	# stopwatch.start()
+
+	for batch_id in batches_per_frame:
+		var batch_sample_index := data.current_index
+		var group_task_id := WorkerThreadPool.add_group_task(
+			train_task_kernel.bind(batch_sample_index, samples_per_task),
+			tasks_per_batch,
+			-1 if thread_count >= max_threads else thread_count,
+			true
+		)
+		WorkerThreadPool.wait_for_group_task_completion(group_task_id)
+		# stopwatch.lap('batch_%d' % batch_id)
+		# for task_id in tasks_per_batch:
+		# 	train_task_kernel(task_id, batch_sample_index, samples_per_task)
+
+		data.next_sample(data.shuffle_training, samples_per_batch)
+		if data.current_index % data.batch_size == 0:
+			apply_parameters_from_gradients(data.batch_size)
+	loss = loss_function.calculate()
+	updated.emit()
+	trained_frame.emit()
+
+	#region Debug
+	var process_time: float = Performance.get_monitor(Performance.Monitor.TIME_PROCESS)
+	DebugTools.write('FPS', '%d' % Engine.get_frames_per_second(), false)
+	DebugTools.write('Process', '%.2fms' % (process_time * 1000), false)
+
+	# DebugTools.write('Current index', '%d' % data.current_index, false)
+	# DebugTools.write('Current sample', '%d' % data.current_sample, false)
+	# DebugTools.write('Samples', '%d' % samples_per_frame, false)
+	# DebugTools.write('Batches', '%d' % batches_per_frame, false)
+	# DebugTools.write('Batch samples', '%d' % samples_per_batch, false)
+	# DebugTools.write('Batch tasks', '%d' % tasks_per_batch, false)
+	# DebugTools.write('Batch task samples', '%d' % samples_per_task, false)
+
+	# for ts in stopwatch.timestamps:
+	# 	DebugTools.write('STS ' + ts, stopwatch.timestamps[ts], true, 4)
+	# for lap in stopwatch.laps:
+	# 	DebugTools.write('SLP ' + lap, stopwatch.laps[lap], true, 4)
+	#endregion
 
 
-func mini_batch_pass():
-	propagate_forwards()
-	compute_output_error()
-	compute_deltas()
-	increment_gradients()
-	data.next_sample(shuffle_training)
-
-
-func train_stochastic(iterations: int):
-	for i in iterations:
-		data.next_sample(shuffle_training)
-		propagate_forwards()
-		propagate_backwards()
-		update_loss()
-
-
-func propagate_forwards_raw():
-	var src := PackedFloat32Array()
-	var tgt := PackedFloat32Array()
-	var tmp: PackedFloat32Array
-	src.resize(layout.max_layer_size)
-	tgt.resize(layout.max_layer_size)
-	var layer_left: Layer = input_layer
-	var hidden_activation = activation_functions.get_function(layout.hidden_activation)
-	var output_activation = activation_functions.get_function(layout.output_activation)
-
-	for i in input_layer.size:
-		src[i] = data.training_data[data.current_sample * input_layer.size + i]
-		input_layer.neurons[i].activation = src[i]
-
-	for layer_right in layers:
-		for b in layer_right.size:
-			var neuron := layer_right.neurons[b]
-			tgt[b] = neuron.bias
-			for a in layer_left.size:
-				tgt[b] += src[a] * neuron.weights[a]
-			if layer_right.is_output:
-				neuron.activation = output_activation.activate(tgt[b])
-			else:
-				neuron.activation = hidden_activation.activate(tgt[b])
-				tgt[b] = neuron.activation
-
-		tmp = src
-		src = tgt
-		tgt = tmp
-		layer_left = layer_right
+func train_task_kernel(task_id: int, batch_sample_index: int, samples_per_task: int):
+	for s in samples_per_task:
+		var task_sample_index: int = batch_sample_index + samples_per_task * task_id + s
+		trainers[task_id].batch_pass(task_sample_index)
+		loss_function.append_array(trainers[task_id].deltas[-1])
+		# if task_id == 0: stopwatch.lap('tk_%d_%d' % [task_id, s])
+	# stopwatch.timestamp('task_%d' % task_id)
 
 
 func propagate_forwards():
@@ -178,61 +188,88 @@ func propagate_forwards():
 	propagated_forwards.emit()
 
 
-func propagate_backwards():
-	compute_output_error()
-	compute_deltas()
-	apply_parameters()
-
-func compute_output_error():
-	for i in output_layer.size:
-		var neuron := output_layer.neurons[i]
-		neuron.delta = data.get_target(i) - neuron.activation
-		neuron.delta *= neuron.activation_function.differentiate(neuron.activation)
-
-
-func compute_deltas():
-	for l in layer_count - 1:
-		for neuron in layers[l].neurons:
-			neuron.compute_delta()
-
-
-func increment_gradients():
+func apply_parameters_from_gradients(sum_size: int = 1):
 	for layer in layers:
 		for neuron in layer.neurons:
-			neuron.increment_bias_gradient()
-			neuron.increment_weight_gradients()
-
-
-func apply_parameters():
-	for layer in layers:
-		for neuron in layer.neurons:
-			neuron.update_weights()
-			neuron.update_bias()
-
-
-func apply_parameters_from_gradients():
-	for layer in layers:
-		for neuron in layer.neurons:
-			neuron.average_bias_gradient(config.batch_size)
-			neuron.average_weight_gradients(config.batch_size)
+			neuron.average_bias_gradient(sum_size)
+			neuron.average_weight_gradients(sum_size)
 			neuron.update_weights_from_gradients()
 			neuron.update_bias_from_gradient()
 			neuron.reset_gradients()
-
 
 #endregion
 
 
 #region Helpers
 
-func update_loss():
-	for i in output_layer.size:
-		loss_function.append(output_layer.neurons[i].delta)
 
 #endregion
 
 
 #region Sub Classes
+
+class Trainer:
+	var nn: NeuralNetwork
+	var layout: Layout
+	var activations: Array[PackedFloat32Array]
+	var deltas: Array[PackedFloat32Array]
+	var sample_idx: int
+
+
+	func _init(network: NeuralNetwork, network_layout: Layout):
+		nn = network
+		layout = network_layout
+		var input_data := PackedFloat32Array()
+		input_data.resize(layout.inputs)
+
+		for layer in nn.layers:
+			var layer_activations := PackedFloat32Array()
+			var layer_deltas := PackedFloat32Array()
+			layer_activations.resize(layer.size)
+			layer_deltas.resize(layer.size)
+			activations.append(layer_activations)
+			deltas.append(layer_deltas)
+		activations.append(input_data)
+
+
+	func batch_pass(sample_index: int):
+		if sample_index >= nn.data.samples:
+			push_warning('Sample index %d out of range' % sample_index)
+			return
+		sample_idx = sample_index
+
+		for i in layout.inputs:
+			activations[-1][i] = nn.data.get_input(i, sample_idx)
+
+		# Forward activation
+		for l in nn.layer_count:
+			var layer := nn.layers[l]
+			for n in layer.size:
+				var neuron := layer.neurons[n]
+				var pre := neuron.bias
+				for i in neuron.incoming_size:
+					pre += activations[l - 1][i] * neuron.weights[i]
+				activations[l][n] = neuron.activation_function.activate(pre)
+
+		# Compute deltas
+		for l in range(nn.layer_count - 1, -1, -1):
+			var layer := nn.layers[l]
+			for n in layer.size:
+				var neuron := layer.neurons[n]
+				deltas[l][n] = 0
+				if layer == nn.output_layer:
+					deltas[l][n] = nn.data.get_target(n, sample_idx) - activations[l][n]
+				else:
+					for o in neuron.outgoing_size:
+						deltas[l][n] += deltas[l + 1][o] * neuron.outgoing[o].weights[n]
+				var diff: float = neuron.activation_function.differentiate(activations[l][n])
+				deltas[l][n] *= diff
+
+				# Increment gradients
+				neuron.bias_gradient += deltas[l][n]
+				for w in neuron.incoming_size:
+					neuron.weight_gradients[w] += activations[l - 1][w] * deltas[l][n]
+
 
 class Layout:
 	var inputs: int:

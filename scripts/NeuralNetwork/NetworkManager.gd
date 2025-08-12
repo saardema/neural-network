@@ -10,11 +10,11 @@ var control_data: PackedFloat32Array
 
 func _ready():
 	init_network()
-	nn_gui.button_reload.pressed.connect(init_network)
+	nn_gui.button_restart.pressed.connect(init_network)
 	nn_gui.problem_changed.connect(init_network)
 
 func init_network():
-	var problem := Problem.create(config.problem, 400)
+	var problem := Problem.create(config.problem, config.sample_count)
 	nn = NeuralNetwork.new(problem.layout, config)
 	nn.data = problem.training_data
 	nn_gui.set_network(nn)
@@ -76,11 +76,12 @@ func _process(_dt: float):
 
 		return TrainingData.new(input_data, target_data, layout.inputs, layout.outputs, samples)
 
+
 class Basic extends Problem:
 	func init():
 		layout.inputs = 1
 		layout.outputs = 1
-		layout.hidden = [10, 10]
+		layout.hidden = [4, 4, 4]
 		layout.hidden_activation = Activations.Type.PreLu
 		layout.output_activation = Activations.Type.PreLu
 
@@ -121,8 +122,9 @@ class BinaryOut extends Problem:
 
 class Xor extends Problem:
 	func init():
+		layout.inputs = 2
+		layout.hidden = [4, 4]
 		layout.output_activation = Activations.Type.LeakyReLu
-		layout = NeuralNetwork.Layout.new(2, [4, 4], 1)
 
 	func _input_gen(x: int) -> Array[float]:
 		return [(x % 4) / 2, x % 2]
@@ -133,15 +135,15 @@ class Xor extends Problem:
 
 class Sin extends Problem:
 	func init():
-		layout.hidden = [8]
+		layout.hidden = [8, 16]
 		layout.hidden_activation = Activations.Type.TanH
 		layout.output_activation = Activations.Type.TanH
 
 	func _combined_gen():
 		for s in samples:
 			var x := float(s) / samples * 2 - 1
-			input_data.append((x))
-			target_data.append(sin(x * TAU) * 0.5)
+			input_data.append(x * 0.8)
+			target_data.append(sin(x * TAU) * 0.5 + cos(x * 17.3) * 0.2)
 
 
 class Polynomial extends Problem:
@@ -153,10 +155,11 @@ class Polynomial extends Problem:
 	func init():
 		layout.inputs = 1
 		layout.hidden = [8, 8]
+		layout.hidden_activation = Activations.Type.TanH
 		layout.output_activation = Activations.Type.SoftMax
 
 	func f(x: float):
-		return 0.3 * pow(x - 0.6, 5) - 1.5 * pow(x - 0.35, 3)
+		return 0.35 * pow(x - 0.6, 5) - 1.5 * pow(x - 0.35, 3)
 
 	func _combined_gen():
 		for s in samples:

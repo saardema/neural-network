@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://b4rmfssfv6eb3"]
+
+[ext_resource type="PackedScene" uid="uid://dl3iq4lf6pmjy" path="res://scenes/neuron_label.tscn" id="1_aw15p"]
+
+[node name="Root" type="MarginContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="GridContainer" type="GridContainer" parent="."]
+layout_mode = 2
+columns = 8
+
+[node name="NeuronLabel" parent="GridContainer" instance=ExtResource("1_aw15p")]
+layout_mode = 2
+
+[node name="NeuronLabelHovered" parent="GridContainer" instance=ExtResource("1_aw15p")]
+layout_mode = 2

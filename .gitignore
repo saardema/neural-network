@@ -5,3 +5,4 @@
 icons/*
 !icons/used
 .vscode/extensions/
+/build

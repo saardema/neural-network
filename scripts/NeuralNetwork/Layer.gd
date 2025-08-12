@@ -1,9 +1,7 @@
-class_name Layer
-
-var neurons: Array[Neuron]
+var neurons: Array[NeuralNetwork.Neuron]
 var size: int
-var previous: Layer
-var next: Layer
+var previous: NeuralNetwork.Layer
+var next: NeuralNetwork.Layer
 var is_output: bool
 
 
@@ -15,12 +13,11 @@ func as_scalar(normalize := true) -> float:
 
 	return sum
 
-func as_array(scale := 1.0) -> PackedFloat32Array:
+func as_array() -> PackedFloat32Array:
 	var result := PackedFloat32Array()
 
 	for neuron in neurons:
 		var value := neuron.activation
-		if scale != 1.0: value *= scale
 		result.append(value)
 
 	return result

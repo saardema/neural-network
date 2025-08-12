@@ -1,5 +1,7 @@
 class_name TrainingData
-extends RefCounted
+
+signal batch_finished
+signal epoch_finished
 
 var training_data: PackedFloat32Array
 var target_data: PackedFloat32Array
@@ -9,9 +11,11 @@ var inputs: int
 var outputs: int
 var samples: int
 var indices: PackedInt32Array
-var _last_sample_resolution: int
 var _last_sampling_range: Array[int]
-
+var shuffle_training: bool = true
+var batch_size: int = 1:
+	set(v):
+		batch_size = _set_batch_size(v)
 
 func _init(
 		input_data: PackedFloat32Array,
@@ -36,24 +40,36 @@ func _init(
 		push_error("Target data length is not a multiple of the number of outputs")
 
 
+func _set_batch_size(value: int) -> int:
+	value = clamp(value, 1, samples)
+	if value != batch_size:
+		rewind()
+
+	return value
+
+
+func rewind():
+	current_sample = 0
+	current_index = 0
+
+
 func get_sampling_range(resolution: int) -> Array[int]:
-	if resolution == _last_sample_resolution:
+	resolution = min(resolution, samples)
+	if resolution == _last_sampling_range.size() - 1 and resolution <= samples:
 		return _last_sampling_range
-	DebugTools.print("Sampling range for resolution %d" % resolution)
-	var rng: Array[int]
 
-	for i in float(resolution):
-		rng.append(floori(i * samples / resolution))
-	rng.append(samples - 1)
+	var sampling_range: Array[int]
 
-	_last_sample_resolution = resolution
-	_last_sampling_range = rng
+	for i in resolution:
+		sampling_range.append(floori(i * samples / resolution))
+	sampling_range.append(samples - 1)
 
-	return rng
+	_last_sampling_range = sampling_range
+
+	return sampling_range
 
 
 func shuffle_indices():
-	DebugTools.print('Shuffling indices')
 	for i in samples - 1:
 		var swap_idx: int = randi_range(i, samples - 1)
 		var index: int = indices[swap_idx]
@@ -61,24 +77,41 @@ func shuffle_indices():
 		indices[i] = index
 
 
-func next_sample(shuffle: bool = true, step := 1):
+func next_sample(shuffle: bool = shuffle_training, step := 1):
 	current_index += step
 
+	if current_index % batch_size == 0:
+		batch_finished.emit()
+
 	if current_index >= samples:
-		current_index = 0
-		if shuffle:
-			shuffle_indices()
+		epoch_finished.emit()
+		rewind()
+		if shuffle: shuffle_indices()
 
 	current_sample = indices[current_index] if shuffle else current_index
 
 
-func get_input(input_idx: int) -> float:
-	return training_data[current_sample * inputs + input_idx]
+func set_sample(index: int, shuffle: bool = shuffle_training):
+	current_index = index
+	current_sample = indices[current_index] if shuffle else current_index
 
 
-func get_target(output_idx: int) -> float:
-	if target_data.size() == 0: return 0
-	return target_data[current_sample * outputs + output_idx]
+func get_input(input_idx: int, index := -1) -> float:
+	if index == -1:
+		index = current_sample
+	elif shuffle_training:
+		index = indices[index]
+
+	return training_data[index * inputs + input_idx]
+
+
+func get_target(output_idx: int, index := -1) -> float:
+	if index == -1:
+		index = current_sample
+	elif shuffle_training:
+		index = indices[index]
+
+	return target_data[index * outputs + output_idx]
 
 
 func get_inputs() -> PackedFloat32Array:
